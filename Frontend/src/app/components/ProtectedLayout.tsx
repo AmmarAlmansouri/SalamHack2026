@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, User, LogOut, Link as LinkIcon } from "lucide-react";
 import { isAuthenticated, logout } from "../api";
+import { MobileNav } from "./MobileNav";
 
 export function ProtectedLayout() {
   const location = useLocation();
@@ -29,18 +30,21 @@ export function ProtectedLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ── Desktop / Tablet top navbar ── */}
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex">
+            <div className="flex items-center">
+              {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-  <img src="/logo.png" alt="Barq Transfer" className="h-8 w-auto md:h-18 lg:h-24" />
-</div>
+                <img src="/logo.png" alt="Barq Transfer" className="h-8 w-auto" />
+              </div>
 
+              {/* Nav links — hidden on mobile, visible sm+ */}
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">
                 <Link
                   to="/app"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     isActive("/app") && location.pathname === "/app"
                       ? "border-indigo-500 text-gray-900"
                       : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -51,7 +55,7 @@ export function ProtectedLayout() {
                 </Link>
                 <Link
                   to="/app/links"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     isActive("/app/links")
                       ? "border-indigo-500 text-gray-900"
                       : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -62,7 +66,7 @@ export function ProtectedLayout() {
                 </Link>
                 <Link
                   to="/app/transactions"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     isActive("/app/transactions")
                       ? "border-indigo-500 text-gray-900"
                       : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -75,7 +79,7 @@ export function ProtectedLayout() {
                 </Link>
                 <Link
                   to="/app/account"
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                     isActive("/app/account")
                       ? "border-indigo-500 text-gray-900"
                       : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -86,7 +90,9 @@ export function ProtectedLayout() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
+
+            {/* Logout button — desktop only */}
+            <div className="hidden sm:flex items-center">
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="inline-flex items-center px-3 py-2 text-sm text-gray-700 hover:text-gray-900"
@@ -98,11 +104,16 @@ export function ProtectedLayout() {
           </div>
         </div>
       </nav>
-      <main>
+
+      {/* ── Page content — extra bottom padding on mobile for tab bar ── */}
+      <main className="pb-24 sm:pb-0">
         <Outlet />
       </main>
 
-      {/* Logout Confirmation Modal */}
+      {/* ── Mobile bottom tab bar ── */}
+      <MobileNav onLogout={() => setShowLogoutModal(true)} />
+
+      {/* ── Logout Confirmation Modal ── */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
