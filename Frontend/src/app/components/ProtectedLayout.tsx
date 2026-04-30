@@ -33,8 +33,9 @@ export function ProtectedLayout() {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-indigo-600">Barq Transfer</h1>
-              </div>
+  <img src="/logo.png" alt="Barq Transfer" className="h-8 w-auto md:h-18 lg:h-24" />
+</div>
+
               <div className="hidden sm:ml-8 sm:flex sm:space-x-8">
                 <Link
                   to="/app"
