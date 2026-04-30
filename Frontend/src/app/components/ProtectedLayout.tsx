@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, User, LogOut, Link as LinkIcon } from "lucide-react";
 import { isAuthenticated, logout } from "../api";
@@ -6,6 +6,7 @@ import { isAuthenticated, logout } from "../api";
 export function ProtectedLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -87,7 +88,7 @@ export function ProtectedLayout() {
             </div>
             <div className="flex items-center">
               <button
-                onClick={handleLogout}
+                onClick={() => setShowLogoutModal(true)}
                 className="inline-flex items-center px-3 py-2 text-sm text-gray-700 hover:text-gray-900"
               >
                 <LogOut className="w-4 h-4 mr-2" />
@@ -100,6 +101,41 @@ export function ProtectedLayout() {
       <main>
         <Outlet />
       </main>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowLogoutModal(false)}
+          />
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 flex flex-col items-center gap-4">
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-100 mb-2">
+              <LogOut className="w-7 h-7 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 text-center">Log out?</h2>
+            <p className="text-sm text-gray-500 text-center">
+              Are you sure you want to log out?
+            </p>
+            <div className="flex gap-3 w-full mt-2">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-2 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 py-2 px-4 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
