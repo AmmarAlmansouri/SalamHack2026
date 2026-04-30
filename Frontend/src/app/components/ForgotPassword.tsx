@@ -29,6 +29,9 @@ export function ForgotPassword() {
     <div className="w-full max-w-md">
       <div className="bg-white rounded-lg shadow-xl p-8">
         <div className="text-center mb-8">
+          <div className="text-center mb-4">
+            <img src="/logo.png" alt="Barq Transfer" className="h-12 w-auto mx-auto mb-4 md:h-18 lg:h-24" />
+          </div>
           <h2 className="text-3xl font-bold text-gray-900">Forgot Password</h2>
           <p className="mt-2 text-sm text-gray-600">
             We'll send you a link to reset your password
