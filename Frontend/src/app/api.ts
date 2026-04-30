@@ -161,3 +161,111 @@ export async function resendConfirmation(email: string) {
 export function logout() {
   clearTokens();
 }
+
+// ── Account API ────────────────────────────────────────────────
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  wallet_address: string | null;
+  is_verified: boolean;
+  email_verified_at: string | null;
+  new_email: string | null;
+  created_at: string;
+  updated_at: string;
+  last_login: string | null;
+}
+
+export interface ProfileResponse {
+  user: UserProfile;
+}
+
+export interface UpdateNameResponse {
+  message: string;
+  data: { name: string };
+}
+
+export interface UpdateEmailResponse {
+  message: string;
+  data: { oldEmail: string; pendingEmail: string };
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+}
+
+export interface UpdateCryptoAddressResponse {
+  message: string;
+  data: { address: string };
+}
+
+export interface CancelEmailChangeResponse {
+  message: string;
+}
+
+export async function getProfile() {
+  return request<ProfileResponse>("/account/profile", {
+    method: "GET",
+  });
+}
+
+export async function updateName(name: string) {
+  const res = await request<UpdateNameResponse>("/account/name", {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+  // Update cached user
+  const user = getUser();
+  if (user) {
+    user.name = res.data.name;
+    saveUser(user);
+  }
+  return res;
+}
+
+export async function updateEmail(newEmail: string, password: string) {
+  return request<UpdateEmailResponse>("/account/email", {
+    method: "PUT",
+    body: JSON.stringify({ newEmail, password }),
+  });
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  return request<ChangePasswordResponse>("/account/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function updateCryptoAddress(
+  address: string,
+  currency: string = "BTC",
+  network: string = "Bitcoin",
+) {
+  return request<UpdateCryptoAddressResponse>("/account/crypto-address", {
+    method: "PUT",
+    body: JSON.stringify({ address, currency, network }),
+  });
+}
+
+export async function cancelEmailChange() {
+  return request<CancelEmailChangeResponse>("/account/cancel-email-change", {
+    method: "POST",
+  });
+}
+
+export interface VerifyNewEmailResponse {
+  message: string;
+  data: { oldEmail: string; newEmail: string };
+}
+
+export async function verifyNewEmail(token: string) {
+  return request<VerifyNewEmailResponse>("/account/verify-new-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+

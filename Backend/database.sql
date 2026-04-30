@@ -48,6 +48,7 @@ CREATE TABLE user_sessions (
     token VARCHAR(500) NOT NULL,
     refresh_token VARCHAR(500) NULL,
     ip_address VARCHAR(45) NULL,
+    metadata JSON NULL,
     is_active BOOLEAN DEFAULT TRUE,
     invalidated_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -3,6 +3,7 @@ import { Login } from "./components/Login";
 import { Signup } from "./components/Signup";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ConfirmEmail } from "./components/ConfirmEmail";
+import { VerifyNewEmail } from "./components/VerifyNewEmail";
 import { Dashboard } from "./components/Dashboard";
 import { AccountDetails } from "./components/AccountDetails";
 import { PaymentStatus } from "./components/PaymentStatus";
@@ -23,6 +24,10 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: "/verify-new-email",
+    Component: VerifyNewEmail,
+  },
+  {
     path: "/app",
     Component: ProtectedLayout,
     children: [
@@ -34,3 +39,4 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
+

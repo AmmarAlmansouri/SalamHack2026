@@ -111,7 +111,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 	try {
 		const [users] = await db.query(
 			`SELECT id, name, email, wallet_address, is_verified, email_verified_at, 
-                    created_at, updated_at, last_login
+                    new_email, created_at, updated_at, last_login
              FROM users 
              WHERE id = ?`,
 			[req.user.userId],
