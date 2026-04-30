@@ -1,100 +1,53 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { Search, Filter, Plus, ExternalLink, CheckCircle, Clock } from "lucide-react";
-
-interface PaymentLink {
-  id: string;
-  name: string;
-  amount: number;
-  currency: string;
-  description: string;
-  link: string;
-  createdAt: Date;
-  used: boolean;
-  usedAt?: Date;
-}
-
-const mockLinks: PaymentLink[] = [
-  {
-    id: "1",
-    name: "Invoice #1234",
-    amount: 15,
-    currency: "ETH",
-    description: "Web development services",
-    link: "https://barq.transfer/pay/abc123",
-    createdAt: new Date("2026-04-20"),
-    used: true,
-    usedAt: new Date("2026-04-21"),
-  },
-  {
-    id: "2",
-    name: "Payment for John",
-    amount: 54,
-    currency: "BTC",
-    description: "Consulting fee",
-    link: "https://barq.transfer/pay/def456",
-    createdAt: new Date("2026-04-25"),
-    used: false,
-  },
-  {
-    id: "3",
-    name: "Freelance Project",
-    amount: 457,
-    currency: "USDT",
-    description: "Logo design work",
-    link: "https://barq.transfer/pay/ghi789",
-    createdAt: new Date("2026-04-26"),
-    used: true,
-    usedAt: new Date("2026-04-27"),
-  },
-  {
-    id: "4",
-    name: "Client Payment - ABC Corp",
-    amount: 75,
-    currency: "ETH",
-    description: "Monthly retainer",
-    link: "https://barq.transfer/pay/jkl012",
-    createdAt: new Date("2026-04-27"),
-    used: false,
-  },
-  {
-    id: "5",
-    name: "Product Sale",
-    amount: 585,
-    currency: "USDC",
-    description: "E-commerce transaction",
-    link: "https://barq.transfer/pay/mno345",
-    createdAt: new Date("2026-04-28"),
-    used: false,
-  },
-];
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+import { Search, Filter, Plus, ExternalLink, CheckCircle, Clock, Loader2, AlertCircle, XCircle } from "lucide-react";
+import { getLinks, type PaymentLink } from "../api";
+import { format } from "date-fns";
 
 export function Links() {
   const navigate = useNavigate();
+  const [links, setLinks] = useState<PaymentLink[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [total, setTotal] = useState(0);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "used" | "unused">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "used" | "expired" | "cancelled">("all");
 
-  const filteredLinks = mockLinks.filter((link) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      link.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      link.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const fetchLinks = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await getLinks({
+        search: searchTerm,
+        dateFrom,
+        dateTo,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        limit: 50,
+      });
+      setLinks(res.data.links);
+      setTotal(res.data.pagination.total);
+    } catch (err: unknown) {
+      const e = err as Error;
+      setError(e.message || "Failed to load links.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const matchesDateFrom = dateFrom === "" || link.createdAt >= new Date(dateFrom);
-    const matchesDateTo = dateTo === "" || link.createdAt <= new Date(dateTo);
+  useEffect(() => {
+    // Debounce search/filters
+    const timer = setTimeout(() => {
+      fetchLinks();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, dateFrom, dateTo, statusFilter]);
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "used" && link.used) ||
-      (statusFilter === "unused" && !link.used);
-
-    return matchesSearch && matchesDateFrom && matchesDateTo && matchesStatus;
-  });
-
-  const handleCopyLink = async (link: string) => {
-    await navigator.clipboard.writeText(link);
+  const handleCopyLink = async (linkUrl: string) => {
+    await navigator.clipboard.writeText(linkUrl);
   };
 
   return (
@@ -135,7 +88,7 @@ export function Links() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Search links..."
+                  placeholder="Name or description..."
                 />
               </div>
             </div>
@@ -173,18 +126,34 @@ export function Links() {
               <select
                 id="status"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as "all" | "used" | "unused")}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="all">All Links</option>
-                <option value="used">Used Only</option>
-                <option value="unused">Unused Only</option>
+                <option value="active">Active</option>
+                <option value="used">Used</option>
+                <option value="expired">Expired</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {error && (
+          <div className="p-4 bg-red-50 border-b border-red-200">
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+              <span className="text-sm text-red-700">{error}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-x-auto relative min-h-[300px]">
+          {loading && (
+            <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
+            </div>
+          )}
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -212,14 +181,14 @@ export function Links() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLinks.length === 0 ? (
+              {links.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
-                    No payment links found matching your filters.
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
+                    No payment links found.
                   </td>
                 </tr>
               ) : (
-                filteredLinks.map((link) => (
+                links.map((link) => (
                   <tr key={link.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{link.name}</div>
@@ -233,32 +202,37 @@ export function Links() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate">{link.description}</div>
+                      <div className="text-sm text-gray-900 max-w-xs truncate">{link.description || "-"}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {link.createdAt.toLocaleDateString()}
+                      {format(new Date(link.createdAt), "MMM d, yyyy")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {link.used ? (
+                      {link.status === "used" ? (
                         <div className="flex items-center text-sm">
                           <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
                           <span className="text-green-700">Used</span>
                           {link.usedAt && (
                             <span className="text-gray-500 ml-2">
-                              ({link.usedAt.toLocaleDateString()})
+                              ({format(new Date(link.usedAt), "MMM d")})
                             </span>
                           )}
                         </div>
+                      ) : link.status === "active" ? (
+                        <div className="flex items-center text-sm">
+                          <Clock className="h-4 w-4 text-blue-500 mr-1" />
+                          <span className="text-blue-700">Active</span>
+                        </div>
                       ) : (
                         <div className="flex items-center text-sm">
-                          <Clock className="h-4 w-4 text-yellow-500 mr-1" />
-                          <span className="text-yellow-700">Unused</span>
+                          <XCircle className="h-4 w-4 text-gray-500 mr-1" />
+                          <span className="text-gray-700 capitalize">{link.status}</span>
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
-                        onClick={() => handleCopyLink(link.link)}
+                        onClick={() => handleCopyLink(link.paymentUrl)}
                         className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
                       >
                         <ExternalLink className="h-4 w-4 mr-1" />
@@ -272,11 +246,11 @@ export function Links() {
           </table>
         </div>
 
-        {filteredLinks.length > 0 && (
+        {total > 0 && !loading && (
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
             <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{filteredLinks.length}</span> of{" "}
-              <span className="font-medium">{mockLinks.length}</span> links
+              Showing <span className="font-medium">{links.length}</span> of{" "}
+              <span className="font-medium">{total}</span> links
             </p>
           </div>
         )}

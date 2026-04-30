@@ -269,3 +269,72 @@ export async function verifyNewEmail(token: string) {
   });
 }
 
+// ── Links API ────────────────────────────────────────────────
+export interface PaymentLink {
+  id: number;
+  name: string;
+  amount: number;
+  currency: string;
+  description: string;
+  status: string;
+  uniqueCode: string;
+  paymentUrl: string;
+  transactionCount: number;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetLinksResponse {
+  data: {
+    links: PaymentLink[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+}
+
+export interface CreateLinkParams {
+  name: string;
+  amount: number;
+  currency: string;
+  description?: string;
+}
+
+export interface CreateLinkResponse {
+  message: string;
+  data: {
+    link: PaymentLink;
+  };
+}
+
+export async function getLinks(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.append(key, String(value));
+    });
+  }
+  const queryString = query.toString();
+  return request<GetLinksResponse>(`/links${queryString ? `?${queryString}` : ""}`);
+}
+
+export async function createLink(data: CreateLinkParams) {
+  return request<CreateLinkResponse>("/links", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+

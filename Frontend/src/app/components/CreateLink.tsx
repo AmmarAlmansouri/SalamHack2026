@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Copy, Check, Link as LinkIcon, ArrowLeft, Download } from "lucide-react";
 import QRCode from "qrcode";
+import { createLink } from "../api";
 
 const FEE_RATE = 0.02;
 
@@ -16,22 +17,43 @@ export function CreateLink() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const linkId = Math.random().toString(36).substring(2, 15);
-    const link = `https://barq.transfer/pay/${linkId}`;
-    setGeneratedLink(link);
+    setError("");
+    setLoading(true);
 
-    const qrUrl = await QRCode.toDataURL(link, {
-      width: 300,
-      margin: 2,
-      color: {
-        dark: "#4f46e5",
-        light: "#ffffff",
-      },
-    });
-    setQrCodeUrl(qrUrl);
+    try {
+      // The API takes the final exact amount.
+      // If "withFees" is selected, the recipient receives amount - fee,
+      // but the link is generated for the full `amount` requested.
+      const res = await createLink({
+        name,
+        amount: parsedAmount,
+        currency,
+        description: description || undefined,
+      });
+
+      const link = res.data.link.paymentUrl;
+      setGeneratedLink(link);
+
+      const qrUrl = await QRCode.toDataURL(link, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: "#4f46e5",
+          light: "#ffffff",
+        },
+      });
+      setQrCodeUrl(qrUrl);
+    } catch (err: unknown) {
+      const e = err as Error;
+      setError(e.message || "Failed to create payment link");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -55,6 +77,7 @@ export function CreateLink() {
     setGeneratedLink("");
     setQrCodeUrl("");
     setCopied(false);
+    setError("");
   };
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -80,6 +103,12 @@ export function CreateLink() {
       {!generatedLink ? (
         <div className="bg-white shadow rounded-lg p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                <span className="text-sm text-red-700">{error}</span>
+              </div>
+            )}
+            
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 Link Name
@@ -88,9 +117,10 @@ export function CreateLink() {
                 type="text"
                 id="name"
                 required
+                disabled={loading}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
                 placeholder="e.g., Payment for John, Invoice #123"
               />
             </div>
@@ -106,16 +136,18 @@ export function CreateLink() {
                   required
                   min="0"
                   step="any"
+                  disabled={loading}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
                   placeholder="0.00"
                 />
                 <select
                   id="currency"
                   value={currency}
+                  disabled={loading}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-700 rounded-r-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-700 rounded-r-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
                 >
                   <option value="ETH">ETH</option>
                   <option value="BTC">BTC</option>
@@ -131,23 +163,25 @@ export function CreateLink() {
                 <div className="inline-flex rounded-md shadow-sm" role="group">
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => setWithFees(true)}
                     className={`px-3 py-1 text-xs font-medium rounded-l-md border ${
                       withFees
                         ? "bg-indigo-600 text-white border-indigo-600"
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
+                    } disabled:opacity-50`}
                   >
                     With Fees
                   </button>
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => setWithFees(false)}
                     className={`px-3 py-1 text-xs font-medium rounded-r-md border border-l-0 ${
                       !withFees
                         ? "bg-indigo-600 text-white border-indigo-600"
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
+                    } disabled:opacity-50`}
                   >
                     Without Fees
                   </button>
@@ -186,9 +220,10 @@ export function CreateLink() {
               <textarea
                 id="description"
                 rows={3}
+                disabled={loading}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
                 placeholder="What is this payment for?"
               />
             </div>
@@ -213,9 +248,20 @@ export function CreateLink() {
 
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              Generate Payment Link
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                "Generate Payment Link"
+              )}
             </button>
           </form>
         </div>
