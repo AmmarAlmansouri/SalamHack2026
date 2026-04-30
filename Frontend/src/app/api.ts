@@ -337,4 +337,99 @@ export async function createLink(data: CreateLinkParams) {
   });
 }
 
+// ── Transactions API ───────────────────────────────────────────
+export interface Transaction {
+  id: number;
+  user_id: number;
+  link_id: number | null;
+  type: string;
+  status: string;
+  payment_id: string | null;
+  payment_amount: number | null;
+  payment_currency: string | null;
+  payment_network: string | null;
+  payment_address: string | null;
+  customer_email: string | null;
+  customer_name: string | null;
+  payout_amount: number | null;
+  payout_currency: string | null;
+  payout_address: string | null;
+  payout_tx_hash: string | null;
+  platform_fee: number | null;
+  network_fee: number | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  link_name?: string;
+  link_description?: string;
+}
+
+export interface TransactionStatsSummary {
+  totalTransactions: number;
+  totalReceived: number;
+  totalPayout: number;
+  totalFees: number;
+  activeDays: number;
+  firstTransaction: string | null;
+  lastTransaction: string | null;
+}
+
+export interface MonthlyStat {
+  month: string;
+  count: number;
+  received: number;
+  payout: number;
+}
+
+export interface GetTransactionsResponse {
+  data: {
+    transactions: Transaction[];
+    summary: {
+      totalTransactions: number;
+      totalReceived: number;
+      totalPayout: number;
+      totalFees: number;
+    };
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+}
+
+export interface GetTransactionStatsResponse {
+  data: {
+    summary: TransactionStatsSummary;
+    monthlyStats: MonthlyStat[];
+  };
+}
+
+export async function getTransactions(params?: {
+  page?: number;
+  limit?: number;
+  type?: string;
+  status?: string;
+  currency?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.append(key, String(value));
+    });
+  }
+  const queryString = query.toString();
+  return request<GetTransactionsResponse>(`/transactions${queryString ? `?${queryString}` : ""}`);
+}
+
+export async function getTransactionStats() {
+  return request<GetTransactionStatsResponse>("/transactions/stats/summary", {
+    method: "GET",
+  });
+}
+
+
 

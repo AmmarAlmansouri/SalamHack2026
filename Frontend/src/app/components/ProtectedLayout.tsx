@@ -59,6 +59,19 @@ export function ProtectedLayout() {
                   Links
                 </Link>
                 <Link
+                  to="/app/transactions"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 ${
+                    isActive("/app/transactions")
+                      ? "border-indigo-500 text-gray-900"
+                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  }`}
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Transactions
+                </Link>
+                <Link
                   to="/app/account"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 ${
                     isActive("/app/account")

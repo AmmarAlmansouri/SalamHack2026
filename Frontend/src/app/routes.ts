@@ -9,6 +9,7 @@ import { AccountDetails } from "./components/AccountDetails";
 import { PaymentStatus } from "./components/PaymentStatus";
 import { CreateLink } from "./components/CreateLink";
 import { Links } from "./components/Links";
+import { Transactions } from "./components/Transactions";
 import { AuthLayout } from "./components/AuthLayout";
 import { ProtectedLayout } from "./components/ProtectedLayout";
 
@@ -36,7 +37,9 @@ export const router = createBrowserRouter([
       { path: "payment-status", Component: PaymentStatus },
       { path: "create-link", Component: CreateLink },
       { path: "links", Component: Links },
+      { path: "transactions", Component: Transactions },
     ],
   },
 ]);
+
 
