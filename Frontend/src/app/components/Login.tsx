@@ -1,16 +1,47 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { login } from "../api";
 
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/app");
+    setError("");
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate("/app");
+    } catch (err: unknown) {
+      const error = err as Error & {
+        status?: number;
+        data?: { needsConfirmation?: boolean; remainingAttempts?: number; error?: string };
+      };
+
+      if (error.status === 403 && error.data?.needsConfirmation) {
+        setError("Please confirm your email before logging in.");
+      } else if (error.status === 423) {
+        setError(error.message);
+      } else if (error.status === 401) {
+        const remaining = error.data?.remainingAttempts;
+        setError(
+          remaining !== undefined && remaining <= 2
+            ? `Invalid email or password. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`
+            : "Invalid email or password."
+        );
+      } else {
+        setError(error.message || "Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -20,6 +51,12 @@ export function Login() {
           <h2 className="text-3xl font-bold text-gray-900">Barq Transfer</h2>
           <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -38,6 +75,7 @@ export function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="you@example.com"
+                disabled={loading}
               />
             </div>
           </div>
@@ -58,6 +96,7 @@ export function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 pr-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="••••••••"
+                disabled={loading}
               />
               <button
                 type="button"
@@ -95,9 +134,14 @@ export function Login() {
 
           <button
             type="submit"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={loading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Sign in
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              "Sign in"
+            )}
           </button>
         </form>
 

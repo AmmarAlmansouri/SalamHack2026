@@ -1,12 +1,30 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { useEffect } from "react";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, User, LogOut, Link as LinkIcon } from "lucide-react";
+import { isAuthenticated, logout } from "../api";
 
 export function ProtectedLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  if (!isAuthenticated()) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -54,13 +72,13 @@ export function ProtectedLayout() {
               </div>
             </div>
             <div className="flex items-center">
-              <Link
-                to="/"
+              <button
+                onClick={handleLogout}
                 className="inline-flex items-center px-3 py-2 text-sm text-gray-700 hover:text-gray-900"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
-              </Link>
+              </button>
             </div>
           </div>
         </div>
