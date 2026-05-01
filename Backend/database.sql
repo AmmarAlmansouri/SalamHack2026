@@ -5,7 +5,6 @@ CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    wallet_address VARCHAR(255) NULL,
     password VARCHAR(255) NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
     email_verified_at DATETIME NULL,
@@ -59,6 +58,20 @@ CREATE TABLE user_sessions (
     INDEX idx_user_id (user_id),
     INDEX idx_token (token(255)),
     INDEX idx_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE crypto_addresses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    network VARCHAR(50) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    label VARCHAR(50) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_currency_network (user_id, currency, network),
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Additional tables for links and transactions

@@ -163,11 +163,21 @@ export function logout() {
 }
 
 // ── Account API ────────────────────────────────────────────────
+export interface CryptoAddress {
+  id: number;
+  currency: string;
+  network: string;
+  address: string;
+  label: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserProfile {
   id: number;
   name: string;
   email: string;
-  wallet_address: string | null;
+  crypto_addresses: CryptoAddress[];
   is_verified: boolean;
   email_verified_at: string | null;
   new_email: string | null;
@@ -196,7 +206,11 @@ export interface ChangePasswordResponse {
 
 export interface UpdateCryptoAddressResponse {
   message: string;
-  data: { address: string };
+  data: { crypto_addresses: CryptoAddress[] };
+}
+
+export interface DeleteCryptoAddressResponse {
+  message: string;
 }
 
 export interface CancelEmailChangeResponse {
@@ -244,10 +258,17 @@ export async function updateCryptoAddress(
   address: string,
   currency: string = "BTC",
   network: string = "Bitcoin",
+  label: string = "",
 ) {
   return request<UpdateCryptoAddressResponse>("/account/crypto-address", {
     method: "PUT",
-    body: JSON.stringify({ address, currency, network }),
+    body: JSON.stringify({ address, currency, network, label }),
+  });
+}
+
+export async function deleteCryptoAddress(id: number) {
+  return request<DeleteCryptoAddressResponse>(`/account/crypto-address/${id}`, {
+    method: "DELETE",
   });
 }
 
