@@ -336,18 +336,18 @@ export function CreateLink() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Amount:</span>
-                <span className="font-medium text-gray-900">{parsedAmount} {currency}</span>
+                <span className="font-medium text-gray-900">{parsedAmount}$</span>
               </div>
               {parsedAmount > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">{withFees ? "Recipient receives:" : "Total claimed:"}</span>
                   <span className="font-medium text-gray-900">
-                    {withFees ? receivedAmount.toFixed(6) : claimedAmount.toFixed(6)} {currency}
+                    {withFees ? receivedAmount.toFixed(6) : claimedAmount.toFixed(2)}$
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-gray-600">Currency:</span>
+                <span className="text-gray-600">Receive Currency:</span>
                 <span className="font-medium text-gray-900">{currency}</span>
               </div>
               {description && (

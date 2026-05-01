@@ -454,5 +454,43 @@ export async function getTransactionStats() {
   });
 }
 
+// ── Public Payment Link API ───────────────────────────────────────────
+export interface PublicLinkResponse {
+  data: {
+    link: {
+      name: string;
+      amount: number;
+      currency: string;
+      description: string;
+      merchantName: string;
+      expiresAt: string;
+    };
+  };
+}
 
+export async function getPublicLink(code: string) {
+  return request<PublicLinkResponse>(`/links/public/${code}`, {
+    method: "GET",
+  });
+}
 
+export interface ProcessPaymentParams {
+  customerName?: string;
+  customerEmail: string;
+}
+
+export interface ProcessPaymentResponse {
+  message: string;
+  data: {
+    hostedUrl: string;
+    paymentId: string;
+    transactionId: number;
+  };
+}
+
+export async function processPayment(code: string, data: ProcessPaymentParams) {
+  return request<ProcessPaymentResponse>(`/links/process-payment/${code}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

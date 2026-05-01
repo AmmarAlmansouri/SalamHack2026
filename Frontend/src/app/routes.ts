@@ -12,6 +12,7 @@ import { Links } from "./components/Links";
 import { Transactions } from "./components/Transactions";
 import { AuthLayout } from "./components/AuthLayout";
 import { ProtectedLayout } from "./components/ProtectedLayout";
+import { PayLink } from "./components/PayLink";
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
   {
     path: "/verify-new-email",
     Component: VerifyNewEmail,
+  },
+  {
+    path: "/pay/:code",
+    Component: PayLink,
   },
   {
     path: "/app",

@@ -19,8 +19,8 @@ app.use(express.json());
 const PORT = 4000;
 
 // ── In-memory stores ────────────────────────────────────────────
-const payments = new Map();   // payment_id → payment object
-const payouts = new Map();    // payout_id → payout object
+const payments = new Map(); // payment_id → payment object
+const payouts = new Map(); // payout_id → payout object
 
 // ── Config ──────────────────────────────────────────────────────
 // The secret must match TRIPLEA_API_SECRET in your .env so
@@ -29,214 +29,246 @@ const API_SECRET = process.env.TRIPLEA_API_SECRET || "your_triplea_api_secret";
 // Where to fire webhooks — should be your backend's APP_URL
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 // Delay (ms) before firing the "paid" webhook after payment creation
-const PAYMENT_WEBHOOK_DELAY = parseInt(process.env.PAYMENT_WEBHOOK_DELAY || "5000", 10);
+const PAYMENT_WEBHOOK_DELAY = parseInt(
+  process.env.PAYMENT_WEBHOOK_DELAY || "5000",
+  10,
+);
 // Delay (ms) before firing the "completed" webhook after payout confirmation
-const PAYOUT_WEBHOOK_DELAY = parseInt(process.env.PAYOUT_WEBHOOK_DELAY || "3000", 10);
+const PAYOUT_WEBHOOK_DELAY = parseInt(
+  process.env.PAYOUT_WEBHOOK_DELAY || "3000",
+  10,
+);
 
 // ── Helpers ─────────────────────────────────────────────────────
 function generateId(prefix = "pay") {
-	return `${prefix}_${crypto.randomBytes(12).toString("hex")}`;
+  return `${prefix}_${crypto.randomBytes(12).toString("hex")}`;
 }
 
 function signPayload(payload) {
-	return crypto
-		.createHmac("sha256", API_SECRET)
-		.update(JSON.stringify(payload))
-		.digest("hex");
+  return crypto
+    .createHmac("sha256", API_SECRET)
+    .update(JSON.stringify(payload))
+    .digest("hex");
 }
 
 function log(emoji, msg, data) {
-	const ts = new Date().toISOString().slice(11, 19);
-	console.log(`${emoji}  [${ts}] ${msg}`);
-	if (data) console.log("   ", JSON.stringify(data, null, 2).split("\n").join("\n    "));
+  const ts = new Date().toISOString().slice(11, 19);
+  console.log(`${emoji}  [${ts}] ${msg}`);
+  if (data)
+    console.log(
+      "   ",
+      JSON.stringify(data, null, 2).split("\n").join("\n    "),
+    );
 }
 
 async function fireWebhook(url, payload) {
-	const signature = signPayload(payload);
-	try {
-		log("📤", `Firing webhook → ${url}`, payload);
-		const res = await axios.post(url, payload, {
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-signature": signature,
-			},
-			timeout: 10000,
-		});
-		log("✅", `Webhook accepted (${res.status})`, res.data);
-	} catch (err) {
-		log("❌", `Webhook failed: ${err.message}`);
-		if (err.response) {
-			log("❌", `  Response: ${err.response.status}`, err.response.data);
-		}
-	}
+  const signature = signPayload(payload);
+  try {
+    log("📤", `Firing webhook → ${url}`, payload);
+    const res = await axios.post(url, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-signature": signature,
+      },
+      timeout: 10000,
+    });
+    log("✅", `Webhook accepted (${res.status})`, res.data);
+  } catch (err) {
+    log("❌", `Webhook failed: ${err.message}`);
+    if (err.response) {
+      log("❌", `  Response: ${err.response.status}`, err.response.data);
+    }
+  }
 }
 
 // ── Middleware: log all requests ─────────────────────────────────
 app.use((req, res, next) => {
-	log("🔵", `${req.method} ${req.path}`);
-	next();
+  log("🔵", `${req.method} ${req.path}`);
+  next();
 });
 
 // ══════════════════════════════════════════════════════════════════
 // POST /v1/payment — Create a payment
 // ══════════════════════════════════════════════════════════════════
 app.post("/v1/payment", (req, res) => {
-	const { merchant_id, order_id, amount, currency, customer, notification, metadata } = req.body;
+  const {
+    merchant_id,
+    order_id,
+    amount,
+    currency,
+    customer,
+    notification,
+    metadata,
+  } = req.body;
 
-	const paymentId = generateId("pay");
-	const hostedUrl = `http://localhost:${PORT}/hosted/${paymentId}`;
+  const paymentId = generateId("pay");
+  const hostedUrl = `http://localhost:${PORT}/hosted/${paymentId}`;
 
-	const payment = {
-		payment_id: paymentId,
-		merchant_id,
-		order_id,
-		amount,
-		currency,
-		customer,
-		status: "new",
-		hosted_url: hostedUrl,
-		notification,
-		metadata,
-		created_at: new Date().toISOString(),
-	};
+  const payment = {
+    payment_id: paymentId,
+    merchant_id,
+    order_id,
+    amount,
+    currency,
+    customer,
+    status: "new",
+    hosted_url: hostedUrl,
+    notification,
+    metadata,
+    created_at: new Date().toISOString(),
+  };
 
-	payments.set(paymentId, payment);
-	log("💳", `Payment created: ${paymentId}`, { order_id, amount, currency });
+  payments.set(paymentId, payment);
+  log("💳", `Payment created: ${paymentId}`, { order_id, amount, currency });
 
-	// Auto-trigger "paid" webhook after a delay to simulate customer paying
-	if (notification?.webhook_url) {
-		setTimeout(async () => {
-			payment.status = "paid";
-			payment.paid_at = new Date().toISOString();
-			log("💰", `Payment ${paymentId} auto-marked as PAID`);
+  // Auto-trigger "paid" webhook after a delay to simulate customer paying
+  if (notification?.webhook_url) {
+    setTimeout(async () => {
+      payment.status = "paid";
+      payment.paid_at = new Date().toISOString();
+      log("💰", `Payment ${paymentId} auto-marked as PAID`);
 
-			await fireWebhook(notification.webhook_url, {
-				payment_id: paymentId,
-				status: "paid",
-				amount: parseFloat(amount),
-				currency,
-				order_id,
-				metadata,
-				paid_at: payment.paid_at,
-			});
-		}, PAYMENT_WEBHOOK_DELAY);
-	}
+      await fireWebhook(notification.webhook_url, {
+        payment_id: paymentId,
+        status: "paid",
+        amount: parseFloat(amount),
+        currency,
+        order_id,
+        metadata,
+        paid_at: payment.paid_at,
+      });
+    }, PAYMENT_WEBHOOK_DELAY);
+  }
 
-	res.status(201).json({
-		payment_id: paymentId,
-		hosted_url: hostedUrl,
-		status: "new",
-		amount,
-		currency,
-	});
+  res.status(201).json({
+    payment_id: paymentId,
+    hosted_url: hostedUrl,
+    status: "new",
+    amount,
+    currency,
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════
 // GET /v1/payment/:paymentId — Get payment status
 // ══════════════════════════════════════════════════════════════════
 app.get("/v1/payment/:paymentId", (req, res) => {
-	const payment = payments.get(req.params.paymentId);
-	if (!payment) {
-		return res.status(404).json({ error: "Payment not found" });
-	}
-	log("🔍", `Payment status: ${payment.payment_id} → ${payment.status}`);
-	res.json(payment);
+  const payment = payments.get(req.params.paymentId);
+  if (!payment) {
+    return res.status(404).json({ error: "Payment not found" });
+  }
+  log("🔍", `Payment status: ${payment.payment_id} → ${payment.status}`);
+  res.json(payment);
 });
 
 // ══════════════════════════════════════════════════════════════════
 // POST /v1/payout — Prepare a payout
 // ══════════════════════════════════════════════════════════════════
 app.post("/v1/payout", (req, res) => {
-	const { merchant_id, payout_id, amount, currency, network, recipient, notification, metadata } = req.body;
+  const {
+    merchant_id,
+    payout_id,
+    amount,
+    currency,
+    network,
+    recipient,
+    notification,
+    metadata,
+  } = req.body;
 
-	const internalPayoutId = payout_id || generateId("pout");
+  const internalPayoutId = payout_id || generateId("pout");
 
-	const payout = {
-		payout_id: internalPayoutId,
-		merchant_id,
-		amount,
-		currency,
-		network,
-		recipient,
-		status: "prepared",
-		notification,
-		metadata,
-		created_at: new Date().toISOString(),
-	};
+  const payout = {
+    payout_id: internalPayoutId,
+    merchant_id,
+    amount,
+    currency,
+    network,
+    recipient,
+    status: "prepared",
+    notification,
+    metadata,
+    created_at: new Date().toISOString(),
+  };
 
-	payouts.set(internalPayoutId, payout);
-	log("📦", `Payout prepared: ${internalPayoutId}`, { amount, currency, network, address: recipient?.address });
+  payouts.set(internalPayoutId, payout);
+  log("📦", `Payout prepared: ${internalPayoutId}`, {
+    amount,
+    currency,
+    network,
+    address: recipient?.address,
+  });
 
-	res.status(201).json({
-		payout_id: internalPayoutId,
-		status: "prepared",
-		amount,
-		currency,
-		network,
-	});
+  res.status(201).json({
+    payout_id: internalPayoutId,
+    status: "prepared",
+    amount,
+    currency,
+    network,
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════
 // POST /v1/payout/:payoutId/confirm — Confirm a payout
 // ══════════════════════════════════════════════════════════════════
 app.post("/v1/payout/:payoutId/confirm", (req, res) => {
-	const payout = payouts.get(req.params.payoutId);
-	if (!payout) {
-		return res.status(404).json({ error: "Payout not found" });
-	}
+  const payout = payouts.get(req.params.payoutId);
+  if (!payout) {
+    return res.status(404).json({ error: "Payout not found" });
+  }
 
-	payout.status = "processing";
-	log("✏️", `Payout ${payout.payout_id} confirmed → processing`);
+  payout.status = "processing";
+  log("✏️", `Payout ${payout.payout_id} confirmed → processing`);
 
-	// Auto-trigger "completed" webhook after a delay
-	if (payout.notification?.webhook_url) {
-		const fakeTxHash = `0x${crypto.randomBytes(32).toString("hex")}`;
+  // Auto-trigger "completed" webhook after a delay
+  if (payout.notification?.webhook_url) {
+    const fakeTxHash = `0x${crypto.randomBytes(32).toString("hex")}`;
 
-		setTimeout(async () => {
-			payout.status = "completed";
-			payout.tx_hash = fakeTxHash;
-			payout.completed_at = new Date().toISOString();
-			log("🎉", `Payout ${payout.payout_id} auto-marked as COMPLETED`);
+    setTimeout(async () => {
+      payout.status = "completed";
+      payout.tx_hash = fakeTxHash;
+      payout.completed_at = new Date().toISOString();
+      log("🎉", `Payout ${payout.payout_id} auto-marked as COMPLETED`);
 
-			await fireWebhook(payout.notification.webhook_url, {
-				payout_id: payout.payout_id,
-				status: "completed",
-				tx_hash: fakeTxHash,
-				amount: payout.amount,
-				currency: payout.currency,
-				completed_at: payout.completed_at,
-			});
-		}, PAYOUT_WEBHOOK_DELAY);
-	}
+      await fireWebhook(payout.notification.webhook_url, {
+        payout_id: payout.payout_id,
+        status: "completed",
+        tx_hash: fakeTxHash,
+        amount: payout.amount,
+        currency: payout.currency,
+        completed_at: payout.completed_at,
+      });
+    }, PAYOUT_WEBHOOK_DELAY);
+  }
 
-	res.json({
-		payout_id: payout.payout_id,
-		status: "processing",
-	});
+  res.json({
+    payout_id: payout.payout_id,
+    status: "processing",
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════
 // GET /v1/payout/:payoutId — Get payout status
 // ══════════════════════════════════════════════════════════════════
 app.get("/v1/payout/:payoutId", (req, res) => {
-	const payout = payouts.get(req.params.payoutId);
-	if (!payout) {
-		return res.status(404).json({ error: "Payout not found" });
-	}
-	log("🔍", `Payout status: ${payout.payout_id} → ${payout.status}`);
-	res.json(payout);
+  const payout = payouts.get(req.params.payoutId);
+  if (!payout) {
+    return res.status(404).json({ error: "Payout not found" });
+  }
+  log("🔍", `Payout status: ${payout.payout_id} → ${payout.status}`);
+  res.json(payout);
 });
 
 // ══════════════════════════════════════════════════════════════════
 // GET /hosted/:paymentId — Simulated hosted payment page
 // ══════════════════════════════════════════════════════════════════
 app.get("/hosted/:paymentId", (req, res) => {
-	const payment = payments.get(req.params.paymentId);
-	if (!payment) {
-		return res.status(404).send("<h1>Payment not found</h1>");
-	}
+  const payment = payments.get(req.params.paymentId);
+  if (!payment) {
+    return res.status(404).send("<h1>Payment not found</h1>");
+  }
 
-	res.send(`
+  res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -294,7 +326,7 @@ app.get("/hosted/:paymentId", (req, res) => {
     <h1>Crypto Payment</h1>
     <div class="detail amount-row">
       <span class="label">Amount</span>
-      <span class="value">${payment.amount} ${payment.currency}</span>
+      <span class="value">${payment.amount}$</span>
     </div>
     <div class="detail">
       <span class="label">Order</span>
@@ -346,14 +378,22 @@ app.get("/hosted/:paymentId", (req, res) => {
         actions.style.display = 'none';
 
         // Redirect after a short delay if redirect URL exists
-        ${payment.notification?.redirect_url ? `
+        ${
+          payment.notification?.redirect_url
+            ? `
         if (action === 'pay') {
           setTimeout(() => { window.location.href = '${payment.notification.redirect_url}'; }, 2000);
-        }` : ""}
-        ${payment.notification?.cancel_url ? `
+        }`
+            : ""
+        }
+        ${
+          payment.notification?.cancel_url
+            ? `
         if (action === 'fail') {
           setTimeout(() => { window.location.href = '${payment.notification.cancel_url}'; }, 2000);
-        }` : ""}
+        }`
+            : ""
+        }
       } catch (err) {
         alert('Error: ' + err.message);
         btn.forEach(b => b.disabled = false);
@@ -370,109 +410,113 @@ app.get("/hosted/:paymentId", (req, res) => {
 // Allows the hosted page (or curl) to trigger "pay" or "fail"
 // ══════════════════════════════════════════════════════════════════
 app.post("/simulate/payment/:paymentId/:action", async (req, res) => {
-	const payment = payments.get(req.params.paymentId);
-	if (!payment) {
-		return res.status(404).json({ error: "Payment not found" });
-	}
+  const payment = payments.get(req.params.paymentId);
+  if (!payment) {
+    return res.status(404).json({ error: "Payment not found" });
+  }
 
-	const action = req.params.action; // "pay" or "fail"
+  const action = req.params.action; // "pay" or "fail"
 
-	if (action === "pay") {
-		payment.status = "paid";
-		payment.paid_at = new Date().toISOString();
-		log("💰", `Payment ${payment.payment_id} manually marked as PAID`);
+  if (action === "pay") {
+    payment.status = "paid";
+    payment.paid_at = new Date().toISOString();
+    log("💰", `Payment ${payment.payment_id} manually marked as PAID`);
 
-		if (payment.notification?.webhook_url) {
-			await fireWebhook(payment.notification.webhook_url, {
-				payment_id: payment.payment_id,
-				status: "paid",
-				amount: parseFloat(payment.amount),
-				currency: payment.currency,
-				order_id: payment.order_id,
-				metadata: payment.metadata,
-				paid_at: payment.paid_at,
-			});
-		}
-	} else if (action === "fail") {
-		payment.status = "failed";
-		payment.failed_at = new Date().toISOString();
-		log("💥", `Payment ${payment.payment_id} manually marked as FAILED`);
+    if (payment.notification?.webhook_url) {
+      await fireWebhook(payment.notification.webhook_url, {
+        payment_id: payment.payment_id,
+        status: "paid",
+        amount: parseFloat(payment.amount),
+        currency: payment.currency,
+        order_id: payment.order_id,
+        metadata: payment.metadata,
+        paid_at: payment.paid_at,
+      });
+    }
+  } else if (action === "fail") {
+    payment.status = "failed";
+    payment.failed_at = new Date().toISOString();
+    log("💥", `Payment ${payment.payment_id} manually marked as FAILED`);
 
-		if (payment.notification?.webhook_url) {
-			await fireWebhook(payment.notification.webhook_url, {
-				payment_id: payment.payment_id,
-				status: "failed",
-				amount: parseFloat(payment.amount),
-				currency: payment.currency,
-				order_id: payment.order_id,
-				metadata: payment.metadata,
-				failed_at: payment.failed_at,
-			});
-		}
-	} else {
-		return res.status(400).json({ error: "Invalid action. Use 'pay' or 'fail'" });
-	}
+    if (payment.notification?.webhook_url) {
+      await fireWebhook(payment.notification.webhook_url, {
+        payment_id: payment.payment_id,
+        status: "failed",
+        amount: parseFloat(payment.amount),
+        currency: payment.currency,
+        order_id: payment.order_id,
+        metadata: payment.metadata,
+        failed_at: payment.failed_at,
+      });
+    }
+  } else {
+    return res
+      .status(400)
+      .json({ error: "Invalid action. Use 'pay' or 'fail'" });
+  }
 
-	res.json({ status: payment.status, payment_id: payment.payment_id });
+  res.json({ status: payment.status, payment_id: payment.payment_id });
 });
 
 // ══════════════════════════════════════════════════════════════════
 // POST /simulate/payout/:payoutId/:action — Manual payout trigger
 // ══════════════════════════════════════════════════════════════════
 app.post("/simulate/payout/:payoutId/:action", async (req, res) => {
-	const payout = payouts.get(req.params.payoutId);
-	if (!payout) {
-		return res.status(404).json({ error: "Payout not found" });
-	}
+  const payout = payouts.get(req.params.payoutId);
+  if (!payout) {
+    return res.status(404).json({ error: "Payout not found" });
+  }
 
-	const action = req.params.action; // "complete" or "fail"
+  const action = req.params.action; // "complete" or "fail"
 
-	if (action === "complete") {
-		const fakeTxHash = `0x${crypto.randomBytes(32).toString("hex")}`;
-		payout.status = "completed";
-		payout.tx_hash = fakeTxHash;
-		payout.completed_at = new Date().toISOString();
-		log("🎉", `Payout ${payout.payout_id} manually marked as COMPLETED`);
+  if (action === "complete") {
+    const fakeTxHash = `0x${crypto.randomBytes(32).toString("hex")}`;
+    payout.status = "completed";
+    payout.tx_hash = fakeTxHash;
+    payout.completed_at = new Date().toISOString();
+    log("🎉", `Payout ${payout.payout_id} manually marked as COMPLETED`);
 
-		if (payout.notification?.webhook_url) {
-			await fireWebhook(payout.notification.webhook_url, {
-				payout_id: payout.payout_id,
-				status: "completed",
-				tx_hash: fakeTxHash,
-				amount: payout.amount,
-				currency: payout.currency,
-				completed_at: payout.completed_at,
-			});
-		}
-	} else if (action === "fail") {
-		payout.status = "failed";
-		payout.failed_at = new Date().toISOString();
-		log("💥", `Payout ${payout.payout_id} manually marked as FAILED`);
+    if (payout.notification?.webhook_url) {
+      await fireWebhook(payout.notification.webhook_url, {
+        payout_id: payout.payout_id,
+        status: "completed",
+        tx_hash: fakeTxHash,
+        amount: payout.amount,
+        currency: payout.currency,
+        completed_at: payout.completed_at,
+      });
+    }
+  } else if (action === "fail") {
+    payout.status = "failed";
+    payout.failed_at = new Date().toISOString();
+    log("💥", `Payout ${payout.payout_id} manually marked as FAILED`);
 
-		if (payout.notification?.webhook_url) {
-			await fireWebhook(payout.notification.webhook_url, {
-				payout_id: payout.payout_id,
-				status: "failed",
-				amount: payout.amount,
-				currency: payout.currency,
-				failed_at: payout.failed_at,
-			});
-		}
-	} else {
-		return res.status(400).json({ error: "Invalid action. Use 'complete' or 'fail'" });
-	}
+    if (payout.notification?.webhook_url) {
+      await fireWebhook(payout.notification.webhook_url, {
+        payout_id: payout.payout_id,
+        status: "failed",
+        amount: payout.amount,
+        currency: payout.currency,
+        failed_at: payout.failed_at,
+      });
+    }
+  } else {
+    return res
+      .status(400)
+      .json({ error: "Invalid action. Use 'complete' or 'fail'" });
+  }
 
-	res.json({ status: payout.status, payout_id: payout.payout_id });
+  res.json({ status: payout.status, payout_id: payout.payout_id });
 });
 
 // ══════════════════════════════════════════════════════════════════
 // GET /dashboard — Admin view of all payments & payouts
 // ══════════════════════════════════════════════════════════════════
 app.get("/dashboard", (req, res) => {
-	const allPayments = Array.from(payments.values());
-	const allPayouts = Array.from(payouts.values());
+  const allPayments = Array.from(payments.values());
+  const allPayouts = Array.from(payouts.values());
 
-	res.send(`
+  res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -505,10 +549,15 @@ app.get("/dashboard", (req, res) => {
   <p class="subtitle">Port ${PORT} — <a class="refresh" href="/dashboard">Refresh</a></p>
 
   <h2>Payments (${allPayments.length})</h2>
-  ${allPayments.length === 0 ? '<p class="empty">No payments yet. Create a payment link and process it.</p>' : `
+  ${
+    allPayments.length === 0
+      ? '<p class="empty">No payments yet. Create a payment link and process it.</p>'
+      : `
   <table>
     <tr><th>Payment ID</th><th>Order</th><th>Amount</th><th>Currency</th><th>Customer</th><th>Status</th><th>Created</th></tr>
-    ${allPayments.map(p => `
+    ${allPayments
+      .map(
+        (p) => `
     <tr>
       <td class="mono">${p.payment_id}</td>
       <td>${p.order_id || "—"}</td>
@@ -516,25 +565,36 @@ app.get("/dashboard", (req, res) => {
       <td>${p.currency}</td>
       <td>${p.customer?.name || "—"}</td>
       <td><span class="status ${p.status}">${p.status}</span></td>
-      <td class="mono">${p.created_at?.slice(11,19) || "—"}</td>
-    </tr>`).join("")}
-  </table>`}
+      <td class="mono">${p.created_at?.slice(11, 19) || "—"}</td>
+    </tr>`,
+      )
+      .join("")}
+  </table>`
+  }
 
   <h2>Payouts (${allPayouts.length})</h2>
-  ${allPayouts.length === 0 ? '<p class="empty">No payouts yet. Payouts are created when a payment webhook is processed.</p>' : `
+  ${
+    allPayouts.length === 0
+      ? '<p class="empty">No payouts yet. Payouts are created when a payment webhook is processed.</p>'
+      : `
   <table>
     <tr><th>Payout ID</th><th>Amount</th><th>Currency</th><th>Network</th><th>Recipient</th><th>Status</th><th>Created</th></tr>
-    ${allPayouts.map(p => `
+    ${allPayouts
+      .map(
+        (p) => `
     <tr>
       <td class="mono">${p.payout_id}</td>
       <td>${p.amount}</td>
       <td>${p.currency}</td>
       <td>${p.network || "—"}</td>
-      <td class="mono">${p.recipient?.address?.slice(0,20) || "—"}…</td>
+      <td class="mono">${p.recipient?.address?.slice(0, 20) || "—"}…</td>
       <td><span class="status ${p.status}">${p.status}</span></td>
-      <td class="mono">${p.created_at?.slice(11,19) || "—"}</td>
-    </tr>`).join("")}
-  </table>`}
+      <td class="mono">${p.created_at?.slice(11, 19) || "—"}</td>
+    </tr>`,
+      )
+      .join("")}
+  </table>`
+  }
 
   <script>setTimeout(() => location.reload(), 5000);</script>
 </body>
@@ -546,31 +606,35 @@ app.get("/dashboard", (req, res) => {
 // Start server
 // ══════════════════════════════════════════════════════════════════
 app.listen(PORT, () => {
-	console.log("");
-	console.log("  ⚡ Triple-A Mock Server running on port " + PORT);
-	console.log("");
-	console.log("  Endpoints:");
-	console.log("    POST /v1/payment              — Create payment");
-	console.log("    GET  /v1/payment/:id           — Get payment status");
-	console.log("    POST /v1/payout                — Prepare payout");
-	console.log("    POST /v1/payout/:id/confirm     — Confirm payout");
-	console.log("    GET  /v1/payout/:id             — Get payout status");
-	console.log("");
-	console.log("  Simulate:");
-	console.log("    POST /simulate/payment/:id/pay   — Trigger paid webhook");
-	console.log("    POST /simulate/payment/:id/fail  — Trigger failed webhook");
-	console.log("    POST /simulate/payout/:id/complete — Trigger completed webhook");
-	console.log("    POST /simulate/payout/:id/fail    — Trigger failed webhook");
-	console.log("");
-	console.log("  Dashboard:  http://localhost:" + PORT + "/dashboard");
-	console.log("  Hosted pay: http://localhost:" + PORT + "/hosted/:paymentId");
-	console.log("");
-	console.log("  Config:");
-	console.log("    API_SECRET:            " + API_SECRET.slice(0, 8) + "...");
-	console.log("    BACKEND_URL:           " + BACKEND_URL);
-	console.log("    PAYMENT_WEBHOOK_DELAY: " + PAYMENT_WEBHOOK_DELAY + "ms");
-	console.log("    PAYOUT_WEBHOOK_DELAY:  " + PAYOUT_WEBHOOK_DELAY + "ms");
-	console.log("");
-	console.log("  👉 Set TRIPLEA_BASE_URL=http://localhost:" + PORT + "/v1 in your .env");
-	console.log("");
+  console.log("");
+  console.log("  ⚡ Triple-A Mock Server running on port " + PORT);
+  console.log("");
+  console.log("  Endpoints:");
+  console.log("    POST /v1/payment              — Create payment");
+  console.log("    GET  /v1/payment/:id           — Get payment status");
+  console.log("    POST /v1/payout                — Prepare payout");
+  console.log("    POST /v1/payout/:id/confirm     — Confirm payout");
+  console.log("    GET  /v1/payout/:id             — Get payout status");
+  console.log("");
+  console.log("  Simulate:");
+  console.log("    POST /simulate/payment/:id/pay   — Trigger paid webhook");
+  console.log("    POST /simulate/payment/:id/fail  — Trigger failed webhook");
+  console.log(
+    "    POST /simulate/payout/:id/complete — Trigger completed webhook",
+  );
+  console.log("    POST /simulate/payout/:id/fail    — Trigger failed webhook");
+  console.log("");
+  console.log("  Dashboard:  http://localhost:" + PORT + "/dashboard");
+  console.log("  Hosted pay: http://localhost:" + PORT + "/hosted/:paymentId");
+  console.log("");
+  console.log("  Config:");
+  console.log("    API_SECRET:            " + API_SECRET.slice(0, 8) + "...");
+  console.log("    BACKEND_URL:           " + BACKEND_URL);
+  console.log("    PAYMENT_WEBHOOK_DELAY: " + PAYMENT_WEBHOOK_DELAY + "ms");
+  console.log("    PAYOUT_WEBHOOK_DELAY:  " + PAYOUT_WEBHOOK_DELAY + "ms");
+  console.log("");
+  console.log(
+    "  👉 Set TRIPLEA_BASE_URL=http://localhost:" + PORT + "/v1 in your .env",
+  );
+  console.log("");
 });
