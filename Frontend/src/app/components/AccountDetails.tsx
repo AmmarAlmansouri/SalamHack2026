@@ -6,8 +6,10 @@ import {
   updateEmail,
   changePassword,
   updateCryptoAddress,
+  deleteCryptoAddress,
   cancelEmailChange,
   type UserProfile,
+  type CryptoAddress,
 } from "../api";
 
 function StatusMessage({ type, message }: { type: "success" | "error"; message: string }) {
@@ -43,7 +45,10 @@ export function AccountDetails() {
 
   // Field values
   const [name, setName] = useState("");
-  const [walletAddress, setWalletAddress] = useState("");
+  const [newCurrency, setNewCurrency] = useState("BTC");
+  const [newNetwork, setNewNetwork] = useState("Bitcoin");
+  const [newAddress, setNewAddress] = useState("");
+  const [newLabel, setNewLabel] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -70,7 +75,6 @@ export function AccountDetails() {
         const res = await getProfile();
         setProfile(res.user);
         setName(res.user.name);
-        setWalletAddress(res.user.wallet_address || "");
       } catch (err: unknown) {
         const error = err as Error;
         setLoadError(error.message || "Failed to load profile");
@@ -135,19 +139,35 @@ export function AccountDetails() {
     }
   };
 
-  const handleSaveWalletAddress = async () => {
+  const handleSaveCryptoAddress = async () => {
     setWalletStatus(null);
     setSavingWallet(true);
     try {
-      const res = await updateCryptoAddress(walletAddress);
-      setProfile((prev) => (prev ? { ...prev, wallet_address: res.data.address } : prev));
-      setWalletStatus({ type: "success", message: "Wallet address updated successfully." });
+      const res = await updateCryptoAddress(newAddress, newCurrency, newNetwork, newLabel);
+      setProfile((prev) => (prev ? { ...prev, crypto_addresses: res.data.crypto_addresses } : prev));
+      setWalletStatus({ type: "success", message: "Crypto address saved successfully." });
       setIsEditingWalletAddress(false);
+      setNewAddress("");
+      setNewLabel("");
     } catch (err: unknown) {
       const error = err as Error;
-      setWalletStatus({ type: "error", message: error.message || "Failed to update wallet address." });
+      setWalletStatus({ type: "error", message: error.message || "Failed to save crypto address." });
     } finally {
       setSavingWallet(false);
+    }
+  };
+
+  const handleDeleteCryptoAddress = async (id: number) => {
+    setWalletStatus(null);
+    try {
+      await deleteCryptoAddress(id);
+      setProfile((prev) => 
+        prev ? { ...prev, crypto_addresses: prev.crypto_addresses.filter(a => a.id !== id) } : prev
+      );
+      setWalletStatus({ type: "success", message: "Crypto address deleted successfully." });
+    } catch (err: unknown) {
+      const error = err as Error;
+      setWalletStatus({ type: "error", message: error.message || "Failed to delete crypto address." });
     }
   };
 
@@ -365,56 +385,117 @@ export function AccountDetails() {
               )}
             </div>
 
-            {/* ── Wallet Address ── */}
+            {/* ── Crypto Addresses ── */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Wallet Address</label>
-              <div className="flex items-center space-x-3">
-                {isEditingWalletAddress ? (
-                  <>
-                    <div className="flex-1 relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Wallet className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        type="text"
-                        value={walletAddress}
-                        onChange={(e) => setWalletAddress(e.target.value)}
-                        disabled={savingWallet}
-                        className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              <div className="flex items-center justify-between mb-4">
+                <label className="block text-sm font-medium text-gray-700">Crypto Addresses</label>
+                <button
+                  onClick={() => setIsEditingWalletAddress(!isEditingWalletAddress)}
+                  className="flex items-center text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  {isEditingWalletAddress ? "Cancel" : "+ Add Address"}
+                </button>
+              </div>
+
+              {isEditingWalletAddress && (
+                <div className="mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+                      <select 
+                        value={newCurrency} 
+                        onChange={(e) => setNewCurrency(e.target.value)}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      >
+                         <option value="BTC">BTC</option>
+                         <option value="ETH">ETH</option>
+                         <option value="USDT">USDT</option>
+                         <option value="USDC">USDC</option>
+                         <option value="BNB">BNB</option>
+                         <option value="XRP">XRP</option>
+                         <option value="SOL">SOL</option>
+                         <option value="ADA">ADA</option>
+                         <option value="DOGE">DOGE</option>
+                         <option value="DOT">DOT</option>
+                         <option value="TRX">TRX</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Network</label>
+                      <input 
+                        type="text" 
+                        value={newNetwork} 
+                        onChange={(e) => setNewNetwork(e.target.value)}
+                        placeholder="e.g. Bitcoin, ERC20"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
+                    <input 
+                      type="text" 
+                      value={newAddress} 
+                      onChange={(e) => setNewAddress(e.target.value)}
+                      placeholder="Crypto address"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Label (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={newLabel} 
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      placeholder="e.g. Main Wallet"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="flex justify-end">
                     <button
-                      onClick={handleSaveWalletAddress}
-                      disabled={savingWallet}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-md disabled:opacity-50"
+                      onClick={handleSaveCryptoAddress}
+                      disabled={savingWallet || !newAddress.trim()}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50"
                     >
-                      {savingWallet ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      {savingWallet ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                      Save Address
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsEditingWalletAddress(false);
-                        setWalletAddress(profile?.wallet_address || "");
-                        setWalletStatus(null);
-                      }}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md font-mono text-sm truncate">
-                      {profile?.wallet_address || "No wallet address set"}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {profile?.crypto_addresses && profile.crypto_addresses.length > 0 ? (
+                  profile.crypto_addresses.map((addr) => (
+                    <div key={addr.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-md bg-white">
+                      <div className="flex items-center space-x-3 truncate">
+                        <div className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-1 rounded">
+                          {addr.currency}
+                        </div>
+                        <div className="flex flex-col truncate">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {addr.address} 
+                            {addr.label && <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-normal">{addr.label}</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">Network: {addr.network}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCryptoAddress(addr.id)}
+                        className="ml-4 p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 flex-shrink-0"
+                        title="Delete address"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setIsEditingWalletAddress(true)}
-                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-md"
-                    >
-                      <Edit2 className="h-5 w-5" />
-                    </button>
-                  </>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 p-4 bg-gray-50 border border-gray-200 rounded-md text-center">
+                    No crypto addresses saved.
+                  </div>
                 )}
               </div>
+
               {walletStatus && <StatusMessage type={walletStatus.type} message={walletStatus.message} />}
             </div>
           </div>

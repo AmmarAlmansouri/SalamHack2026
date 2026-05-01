@@ -110,7 +110,7 @@ const validateDeleteCryptoAddress = [
 router.get("/profile", authMiddleware, async (req, res) => {
 	try {
 		const [users] = await db.query(
-			`SELECT id, name, email, wallet_address, is_verified, email_verified_at, 
+			`SELECT id, name, email, is_verified, email_verified_at, 
                     new_email, created_at, updated_at, last_login
              FROM users 
              WHERE id = ?`,
@@ -122,6 +122,15 @@ router.get("/profile", authMiddleware, async (req, res) => {
 		}
 
 		const user = users[0];
+
+		const [cryptoAddresses] = await db.query(
+			`SELECT id, currency, network, address, label, created_at, updated_at
+             FROM crypto_addresses 
+             WHERE user_id = ?`,
+			[user.id],
+		);
+
+		user.crypto_addresses = cryptoAddresses;
 
 		res.json({ user });
 	} catch (error) {
@@ -518,46 +527,60 @@ router.put(
 	authMiddleware,
 	validateAddCryptoAddress,
 	async (req, res) => {
-		const connection = await db.getConnection();
-
 		try {
 			const errors = validationResult(req);
 			if (!errors.isEmpty()) {
 				return res.status(400).json({ errors: errors.array() });
 			}
 
-			const { address } = req.body;
+			const { currency, network, address, label } = req.body;
 			const userId = req.user.userId;
 
-			await connection.beginTransaction();
-
-			// Check for duplicate address per network
-			const [existing] = await connection.query(
-				`SELECT id FROM users 
-             WHERE id = ? AND wallet_address = ?`,
-				[userId, address.trim()],
+			const [result] = await db.query(
+				`INSERT INTO crypto_addresses (user_id, currency, network, address, label) 
+                 VALUES (?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE address = VALUES(address), label = VALUES(label), updated_at = NOW()`,
+				[userId, currency.trim(), network.trim(), address.trim(), label ? label.trim() : null],
 			);
 
-			// Add address
-			const [result] = await connection.query(
-				`UPDATE users SET wallet_address = ?, updated_at = NOW() WHERE id = ?`,
-				[address.trim(), userId],
+			const [cryptoAddresses] = await db.query(
+				`SELECT id, currency, network, address, label, created_at, updated_at
+                 FROM crypto_addresses 
+                 WHERE user_id = ?`,
+				[userId],
 			);
-
-			await connection.commit();
 
 			res.status(201).json({
 				message: "Crypto address updated successfully",
-				data: { address: address.trim() },
+				data: { crypto_addresses: cryptoAddresses },
 			});
 		} catch (error) {
-			await connection.rollback();
 			console.error("Add crypto address error:", error);
 			res.status(500).json({ error: "Internal server error" });
-		} finally {
-			connection.release();
 		}
 	},
 );
+
+// ==================== DELETE CRYPTO ADDRESS ====================
+router.delete("/crypto-address/:id", authMiddleware, async (req, res) => {
+	try {
+		const addressId = req.params.id;
+		const userId = req.user.userId;
+		
+		const [result] = await db.query(
+			`DELETE FROM crypto_addresses WHERE id = ? AND user_id = ?`,
+			[addressId, userId]
+		);
+		
+		if (result.affectedRows === 0) {
+		    return res.status(404).json({ error: "Address not found or unauthorized to delete" });
+		}
+		
+		res.json({ message: "Crypto address deleted successfully" });
+	} catch (error) {
+		console.error("Delete crypto address error:", error);
+		res.status(500).json({ error: "Internal server error" });
+	}
+});
 
 module.exports = router;
