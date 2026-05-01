@@ -37,7 +37,7 @@ export function ProtectedLayout() {
             <div className="flex items-center">
               {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-                <img src="/logo.png" alt="Barq Transfer" className="h-8 w-auto" />
+                <img src="/logo.png" alt="Barq Transfer" className="h-24 w-auto" />
               </div>
 
               {/* Nav links — hidden on mobile, visible sm+ */}
