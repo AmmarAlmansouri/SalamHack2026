@@ -122,6 +122,8 @@ app.post("/v1/payment", (req, res) => {
   log("💳", `Payment created: ${paymentId}`, { order_id, amount, currency });
 
   // Auto-trigger "paid" webhook after a delay to simulate customer paying
+  // disabled so user must manually simulate
+  /*
   if (notification?.webhook_url) {
     setTimeout(async () => {
       payment.status = "paid";
@@ -139,6 +141,7 @@ app.post("/v1/payment", (req, res) => {
       });
     }, PAYMENT_WEBHOOK_DELAY);
   }
+  */
 
   res.status(201).json({
     payment_id: paymentId,

@@ -13,6 +13,8 @@ import { Transactions } from "./components/Transactions";
 import { AuthLayout } from "./components/AuthLayout";
 import { ProtectedLayout } from "./components/ProtectedLayout";
 import { PayLink } from "./components/PayLink";
+import { PaymentCancel } from "./components/PaymentCancel";
+import { PaymentSuccess } from "./components/PaymentSuccess";
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +34,14 @@ export const router = createBrowserRouter([
   {
     path: "/pay/:code",
     Component: PayLink,
+  },
+  {
+    path: "/payment/cancel",
+    Component: PaymentCancel,
+  },
+  {
+    path: "/payment/success",
+    Component: PaymentSuccess,
   },
   {
     path: "/app",
