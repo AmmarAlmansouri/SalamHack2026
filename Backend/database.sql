@@ -159,25 +159,6 @@ CREATE TABLE transactions (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Platform fees configuration
-CREATE TABLE platform_fees (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    fee_percentage DECIMAL(5, 2) NOT NULL DEFAULT 2.50,
-    min_fee_amount DECIMAL(10, 2) DEFAULT 1.00,
-    max_fee_amount DECIMAL(10, 2) DEFAULT 100.00,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_by INT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Insert default platform fee
-INSERT INTO platform_fees (fee_percentage, min_fee_amount, max_fee_amount) 
-VALUES (2.50, 1.00, 100.00);
-
 -- User wallet balances (optional, for tracking)
 CREATE TABLE user_wallets (
     id INT AUTO_INCREMENT PRIMARY KEY,

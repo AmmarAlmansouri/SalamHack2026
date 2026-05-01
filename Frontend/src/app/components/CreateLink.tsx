@@ -31,7 +31,7 @@ export function CreateLink() {
       // but the link is generated for the full `amount` requested.
       const res = await createLink({
         name,
-        amount: parsedAmount,
+        amount: claimedAmount,
         currency,
         description: description || undefined,
       });
@@ -84,7 +84,7 @@ export function CreateLink() {
   const fee = parsedAmount * FEE_RATE;
   // "With fees" means the entered amount already includes the fee
   const receivedAmount = withFees ? parsedAmount - (parsedAmount * FEE_RATE) : parsedAmount;
-  const claimedAmount = withFees ? parsedAmount : parsedAmount + (parsedAmount * FEE_RATE);
+  const claimedAmount = withFees ? parsedAmount : parsedAmount / (1 - FEE_RATE);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -197,7 +197,7 @@ export function CreateLink() {
                     <>
                       <span className="font-medium">Recipient receives:</span>{" "}
                       {receivedAmount.toFixed(2)}$ {" "}
-                      <span className="text-xs opacity-75">(1% fee: {fee.toFixed(2)}$)</span>
+                      <span className="text-xs opacity-75">({FEE_RATE*100}% fee: {fee.toFixed(2)}$)</span>
                     </>
                   ) : (
                     <>
