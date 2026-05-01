@@ -476,6 +476,16 @@ export function AccountDetails() {
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {addr.address} 
                             {addr.label && <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-normal">{addr.label}</span>}
+                            {!addr.is_active && <span className="ml-2 px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-xs font-normal">Inactive</span>}
+                            {addr.is_verified ? (
+                                <span className="ml-2 px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-normal flex items-center inline-flex">
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Verified
+                                </span>
+                            ) : (
+                                <span className="ml-2 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-xs font-normal flex items-center inline-flex">
+                                  <AlertCircle className="h-3 w-3 mr-1" /> Unverified
+                                </span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">Network: {addr.network}</p>
                         </div>

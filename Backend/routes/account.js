@@ -124,7 +124,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 		const user = users[0];
 
 		const [cryptoAddresses] = await db.query(
-			`SELECT id, currency, network, address, label, created_at, updated_at
+			`SELECT id, currency, network, address, label, is_active, is_verified, created_at, updated_at
              FROM crypto_addresses 
              WHERE user_id = ?`,
 			[user.id],
@@ -544,7 +544,7 @@ router.put(
 			);
 
 			const [cryptoAddresses] = await db.query(
-				`SELECT id, currency, network, address, label, created_at, updated_at
+				`SELECT id, currency, network, address, label, is_active, is_verified, created_at, updated_at
                  FROM crypto_addresses 
                  WHERE user_id = ?`,
 				[userId],

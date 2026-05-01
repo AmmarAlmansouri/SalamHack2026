@@ -169,6 +169,8 @@ export interface CryptoAddress {
   network: string;
   address: string;
   label: string | null;
+  is_active: boolean;
+  is_verified: boolean;
   created_at: string;
   updated_at: string;
 }
